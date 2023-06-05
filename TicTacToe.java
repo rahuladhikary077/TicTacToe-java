@@ -9,7 +9,9 @@ public class TicTacToe implements ActionListener {
     private JLabel textField;
     private JButton[] buttons;
     private boolean player1Turn;
-    
+    private String currentPlayerSymbol;
+    private String[] board;
+
     private static final int BOARD_SIZE = 3;
 
     TicTacToe() {
@@ -18,7 +20,7 @@ public class TicTacToe implements ActionListener {
         frame.setSize(400, 400);
         frame.getContentPane().setBackground(new Color(50, 50, 50));
         frame.setLayout(new BorderLayout());
-        
+
         textField = new JLabel();
         textField.setBackground(new Color(25, 25, 25));
         textField.setForeground(new Color(25, 255, 0));
@@ -26,15 +28,15 @@ public class TicTacToe implements ActionListener {
         textField.setHorizontalAlignment(JLabel.CENTER);
         textField.setText("Tic-Tac-Toe");
         textField.setOpaque(true);
-        
+
         titlePanel = new JPanel();
         titlePanel.setLayout(new BorderLayout());
         titlePanel.setBounds(0, 0, 400, 100);
         titlePanel.add(textField);
-        
+
         buttonPanel = new JPanel();
         buttonPanel.setLayout(new GridLayout(BOARD_SIZE, BOARD_SIZE));
-        
+
         buttons = new JButton[BOARD_SIZE * BOARD_SIZE];
         for (int i = 0; i < buttons.length; i++) {
             buttons[i] = new JButton();
@@ -43,149 +45,112 @@ public class TicTacToe implements ActionListener {
             buttons[i].addActionListener(this);
             buttonPanel.add(buttons[i]);
         }
-        
+
         frame.add(titlePanel, BorderLayout.NORTH);
         frame.add(buttonPanel);
-        
+
         initializeGame();
-        
+
         frame.setVisible(true);
     }
 
     private void initializeGame() {
         player1Turn = true;
+        currentPlayerSymbol = "X";
         textField.setText("Player 1 (X) turn");
-        
-        for (JButton button : buttons) {
-            button.setEnabled(true);
-            button.setText("");
-            button.setBackground(new Color(238, 238, 238));
+
+        board = new String[BOARD_SIZE * BOARD_SIZE];
+        for (int i = 0; i < board.length; i++) {
+            board[i] = "";
         }
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
         JButton clickedButton = (JButton) e.getSource();
-        
-        if (player1Turn) {
-            clickedButton.setText("X");
-            clickedButton.setForeground(new Color(255, 0, 0));
-            textField.setText("Player 2 (O) turn");
-        } else {
-            clickedButton.setText("O");
-            clickedButton.setForeground(new Color(0, 0, 255));
-            textField.setText("Player 1 (X) turn");
+
+        int buttonIndex = -1;
+        for (int i = 0; i < buttons.length; i++) {
+            if (buttons[i] == clickedButton) {
+                buttonIndex = i;
+                break;
+            }
         }
-        
-        clickedButton.setEnabled(false);
-        player1Turn = !player1Turn;
-        
-        checkForWin();
+
+        if (buttonIndex != -1 && board[buttonIndex].isEmpty()) {
+            board[buttonIndex] = currentPlayerSymbol;
+            clickedButton.setText(currentPlayerSymbol);
+            clickedButton.setForeground(currentPlayerSymbol.equals("X") ? Color.RED : Color.BLUE);
+            clickedButton.setEnabled(false);
+            player1Turn = !player1Turn;
+            currentPlayerSymbol = player1Turn ? "X" : "O";
+            textField.setText("Player " + (player1Turn ? "1 (X)" : "2 (O)") + " turn");
+
+            if (checkForWin()) {
+                for (JButton button : buttons) {
+                    button.setEnabled(false);
+                }
+                textField.setText("Player " + (player1Turn ? "1 (X)" : "2 (O)") + " wins!");
+            } else if (isBoardFull()) {
+                textField.setText("It's a tie!");
+            }
+        }
     }
-    
-    private void checkForWin() {
-        // Check rows
+
+    private boolean checkForWin() {
+        return checkRowsForWin() || checkColumnsForWin() || checkDiagonalsForWin();
+    }
+
+    private boolean checkRowsForWin() {
         for (int i = 0; i < BOARD_SIZE; i++) {
-            if (checkRow(i))
-                return;
+            int startIndex = i * BOARD_SIZE;
+            if (!board[startIndex].isEmpty() && board[startIndex].equals(board[startIndex + 1]) && board[startIndex].equals(board[startIndex + 2])) {
+                highlightWinningButtons(startIndex, startIndex + 2);
+                return true;
+            }
         }
-        
-        // Check columns
+        return false;
+    }
+
+    private boolean checkColumnsForWin() {
         for (int i = 0; i < BOARD_SIZE; i++) {
-            if (checkColumn(i))
-                return;
+            int startIndex = i;
+            if (!board[startIndex].isEmpty() && board[startIndex].equals(board[startIndex + BOARD_SIZE]) && board[startIndex].equals(board[startIndex + 2 * BOARD_SIZE])) {
+                highlightWinningButtons(startIndex, startIndex + 2 * BOARD_SIZE);
+                return true;
+            }
         }
-        
-        // Check diagonals
-        if (checkDiagonal(true) || checkDiagonal(false))
-            return;
-        
-        // Check for a tie
-        if (checkForTie())
-            return;
+        return false;
     }
-    
-    private boolean checkRow(int row) {
-        int startIndex = row * BOARD_SIZE;
-        String symbol = buttons[startIndex].getText();
-        
-        if (symbol.isBlank())
-            return false;
-        
-        for (int i = startIndex + 1; i < startIndex + BOARD_SIZE; i++) {
-            if (!buttons[i].getText().equals(symbol))
-                return false;
+
+    private boolean checkDiagonalsForWin() {
+        int startIndex = 0;
+        if (!board[startIndex].isEmpty() && board[startIndex].equals(board[startIndex + BOARD_SIZE + 1]) && board[startIndex].equals(board[startIndex + 2 * BOARD_SIZE + 2])) {
+            highlightWinningButtons(startIndex, startIndex + 2 * BOARD_SIZE + 2);
+            return true;
         }
-        
-        highlightWinningButtons(startIndex, startIndex + BOARD_SIZE - 1);
-        announceWinner(symbol);
-        
+
+        startIndex = BOARD_SIZE - 1;
+        if (!board[startIndex].isEmpty() && board[startIndex].equals(board[startIndex + BOARD_SIZE - 1]) && board[startIndex].equals(board[startIndex + 2 * (BOARD_SIZE - 1)])) {
+            highlightWinningButtons(startIndex, startIndex + 2 * (BOARD_SIZE - 1));
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean isBoardFull() {
+        for (String cell : board) {
+            if (cell.isEmpty()) {
+                return false;
+            }
+        }
         return true;
     }
-    
-    private boolean checkColumn(int column) {
-        int startIndex = column;
-        String symbol = buttons[startIndex].getText();
-        
-        if (symbol.isBlank())
-            return false;
-        
-        for (int i = startIndex + BOARD_SIZE; i < BOARD_SIZE * BOARD_SIZE; i += BOARD_SIZE) {
-            if (!buttons[i].getText().equals(symbol))
-                return false;
-        }
-        
-        highlightWinningButtons(startIndex, startIndex + BOARD_SIZE * (BOARD_SIZE - 1));
-        announceWinner(symbol);
-        
-        return true;
-    }
-    
-    private boolean checkDiagonal(boolean isMainDiagonal) {
-        int startIndex = isMainDiagonal ? 0 : BOARD_SIZE - 1;
-        int increment = isMainDiagonal ? BOARD_SIZE + 1 : BOARD_SIZE - 1;
-        String symbol = buttons[startIndex].getText();
-        
-        if (symbol.isBlank())
-            return false;
-        
-        for (int i = startIndex + increment; i < BOARD_SIZE * BOARD_SIZE; i += increment) {
-            if (!buttons[i].getText().equals(symbol))
-                return false;
-        }
-        
-        highlightWinningButtons(startIndex, startIndex + increment * (BOARD_SIZE - 1));
-        announceWinner(symbol);
-        
-        return true;
-    }
-    
-    private boolean checkForTie() {
-        for (JButton button : buttons) {
-            if (button.getText().isBlank())
-                return false;
-        }
-        
-        announceWinner("Tie");
-        
-        return true;
-    }
-    
+
     private void highlightWinningButtons(int startIndex, int endIndex) {
         for (int i = startIndex; i <= endIndex; i++) {
             buttons[i].setBackground(new Color(0, 255, 0));
-        }
-        
-        for (JButton button : buttons) {
-            button.setEnabled(false);
-        }
-    }
-    
-    private void announceWinner(String symbol) {
-        if (symbol.equals("Tie")) {
-            textField.setText("It's a tie!");
-        } else {
-            textField.setText(symbol + " wins!");
         }
     }
 
